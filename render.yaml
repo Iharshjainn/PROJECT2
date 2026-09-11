@@ -1,7 +1,7 @@
 services:
   # FastAPI Backend Service
   - type: web
-    name: aurafinance-backend
+    name: prospera-backend
     env: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
