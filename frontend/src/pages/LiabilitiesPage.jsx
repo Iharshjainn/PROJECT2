@@ -55,16 +55,33 @@ export default function LiabilitiesPage() {
     return <LoadingSpinner message="Evaluating liabilities and debt obligations..." />;
   }
 
+  const [strategy, setStrategy] = useState('avalanche');
+
   const totalDebt = liabilities.reduce((sum, l) => sum + Number(l.outstanding_amount || 0), 0);
   const totalMonthlyEmi = liabilities.reduce((sum, l) => sum + Number(l.monthly_payment || 0), 0);
+  const totalAnnualInterestDrag = liabilities.reduce(
+    (sum, l) => sum + (Number(l.outstanding_amount || 0) * (Number(l.interest_rate || 0) / 100)),
+    0
+  );
+
+  // Ranked debts
+  const rankedDebts = [...liabilities].sort((a, b) => {
+    if (strategy === 'avalanche') {
+      return (Number(b.interest_rate || 0)) - (Number(a.interest_rate || 0));
+    } else {
+      return (Number(a.outstanding_amount || 0)) - (Number(b.outstanding_amount || 0));
+    }
+  });
+
+  const topPriority = rankedDebts.length > 0 ? rankedDebts[0] : null;
 
   return (
     <div className="space-y-8 animate-fadeIn">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Liabilities & Debt Burden</h1>
+          <h1 className="text-2xl font-black text-white tracking-tight">Liabilities & Debt Intelligence</h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Monitor loans, interest rates, and monthly EMI drag on cashflow
+            Surface the true cost of loans, eliminate interest drag, and rank repayment priority
           </p>
         </div>
 
@@ -81,11 +98,11 @@ export default function LiabilitiesPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Outstanding Debt"
           value={formatCurrency(totalDebt, currency)}
-          subtitle="Cumulative principal remaining"
+          subtitle="Cumulative principal balance"
           icon={TrendingDown}
           color="rose"
         />
@@ -99,13 +116,80 @@ export default function LiabilitiesPage() {
         />
 
         <StatCard
+          title="Annual Interest Cost Drag"
+          value={formatCurrency(totalAnnualInterestDrag, currency)}
+          subtitle="True cost paid to lenders each year"
+          icon={Percent}
+          color="rose"
+        />
+
+        <StatCard
           title="Active Loan Accounts"
           value={liabilities.length}
-          subtitle={liabilities.length === 0 ? "Completely debt free!" : "Manageable obligations"}
+          subtitle={liabilities.length === 0 ? "Completely debt free!" : `${liabilities.length} active obligations`}
           icon={AlertTriangle}
           color={liabilities.length === 0 ? "emerald" : "sky"}
         />
       </div>
+
+      {/* Debt Ranking Recommendation Engine */}
+      {liabilities.length > 1 && (
+        <div className="bg-gradient-to-r from-rose-950/30 via-slate-900 to-slate-900 border border-rose-500/20 rounded-2xl p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-400 text-[10px] font-bold uppercase tracking-wider border border-rose-500/30">
+                  Priority Payoff Intelligence
+                </span>
+                <h3 className="text-sm font-bold text-white">Which Balance Should You Clear First?</h3>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                {strategy === 'avalanche'
+                  ? "Debt Avalanche: Ranks by highest interest rate to mathematically minimize total interest paid."
+                  : "Debt Snowball: Ranks by lowest principal balance to build rapid psychological momentum."}
+              </p>
+            </div>
+
+            <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1 self-start sm:self-auto">
+              <button
+                onClick={() => setStrategy('avalanche')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                  strategy === 'avalanche' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Avalanche (Save Most ₹)
+              </button>
+              <button
+                onClick={() => setStrategy('snowball')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                  strategy === 'snowball' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Snowball (Fastest Wins)
+              </button>
+            </div>
+          </div>
+
+          {topPriority && (
+            <div className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-3">
+                <span className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-400 font-black flex items-center justify-center text-xs">
+                  1
+                </span>
+                <div>
+                  <span className="font-bold text-white">{topPriority.name}</span>
+                  <span className="text-slate-400 ml-2">
+                    ({topPriority.interest_rate ? `${topPriority.interest_rate}% APR` : '0% APR'} · Outstanding: {formatCurrency(topPriority.outstanding_amount, currency)})
+                  </span>
+                </div>
+              </div>
+              <span className="text-[11px] font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20">
+                Recommended #1 Priority to Clear First
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {liabilities.length > 0 ? (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm">

@@ -59,3 +59,37 @@ def test_rent_increase_scenario():
     assert result["details"]["new_monthly_savings"] == 25000.0
     # 25,000 / 80,000 * 100 = 31.25%
     assert result["details"]["new_savings_rate"] == 31.25
+
+def test_new_emi_scenario():
+    analytics = {
+        "total_income": 100000.0,
+        "average_monthly_income": 100000.0,
+        "total_expenses": 60000.0,
+        "average_monthly_expenses": 60000.0,
+        "total_monthly_debt": 5000.0,
+        "debt_to_income_ratio": 5.0,
+        "savings_rate": 40.0
+    }
+    goals = [
+        {"name": "Emergency Fund", "target_amount": 100000.0, "current_amount": 20000.0}
+    ]
+
+    result = calculate_scenario(
+        scenario_type="new_emi",
+        amount=15000.0,
+        item_name="Car Loan EMI",
+        analytics=analytics,
+        goals=goals
+    )
+
+    assert result["details"]["emi_amount"] == 15000.0
+    # Current debt = 5,000 + 15,000 = 20,000
+    assert result["metrics_after"]["monthly_debt"] == 20000.0
+    # New debt-to-income: 20,000 / 100,000 * 100 = 20%
+    assert result["metrics_after"]["debt_to_income"] == 20.0
+    # New savings: (100,000 - 60,000) - 15,000 = 25,000
+    assert result["metrics_after"]["monthly_savings"] == 25000.0
+    # New savings rate: 25%
+    assert result["metrics_after"]["savings_rate"] == 25.0
+    assert result["status"] == "affordable"
+

@@ -59,8 +59,15 @@ async def get_dashboard_summary(user: AuthenticatedUser = Depends(get_current_us
         "category_spending": analytics.get("top_categories", [])[:6],
         "monthly_trends": analytics.get("monthly_trends", [])[-6:],
         "recent_transactions": recent_transactions,
+        "actionable_alerts": analytics.get("actionable_alerts", []),
+        "cash_flow_projection": analytics.get("cash_flow_projection", {}),
+        "recurring_subscriptions": analytics.get("recurring_subscriptions", []),
+        "total_monthly_subscriptions": analytics.get("total_monthly_subscriptions", 0.0),
+        "liability_intelligence": analytics.get("liability_intelligence", {}),
         "suggested_prompts": [
-            "Analyze my spending breakdown",
+            "Project my month-end balance and cash flow",
+            "Which active loan or credit card should I pay first?",
+            "Detect my recurring subscriptions and unused services",
             "Can I afford an iPhone for ₹80,000?",
             "How can I improve my financial health score?",
             "What if my rent increases by ₹5,000?"

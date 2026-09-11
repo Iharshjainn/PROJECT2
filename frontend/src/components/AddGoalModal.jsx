@@ -135,6 +135,8 @@ export default function AddGoalModal({ isOpen, onClose, onSuccess, initialData =
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
               >
                 <option value="emergency_fund">Emergency Fund</option>
+                <option value="loan_prepayment">Loan Prepayment / Debt Payoff</option>
+                <option value="purchase">Major Purchase</option>
                 <option value="retirement">Retirement</option>
                 <option value="vacation">Travel & Vacation</option>
                 <option value="home">Home / Down Payment</option>

@@ -11,7 +11,8 @@ import {
   CheckCircle2, 
   ArrowRight,
   Sparkles,
-  Loader2
+  Loader2,
+  CreditCard
 } from 'lucide-react';
 import api from '../services/api';
 import { formatCurrency } from '../utils/formatters';
@@ -26,7 +27,16 @@ const SCENARIO_PRESETS = [
     icon: ShoppingBag,
     color: 'text-sky-400 bg-sky-500/10 border-sky-500/20',
     defaultAmount: 80000,
-    defaultName: 'iPhone 15'
+    defaultName: 'iPhone 16 Pro'
+  },
+  {
+    type: 'new_emi',
+    title: 'New EMI / Loan Undertaking',
+    description: 'Simulate a new vehicle or personal loan EMI and see its impact on savings rate & goal timelines',
+    icon: CreditCard,
+    color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    defaultAmount: 12000,
+    defaultName: 'Car Loan EMI'
   },
   {
     type: 'expense_increase',
@@ -39,12 +49,12 @@ const SCENARIO_PRESETS = [
   },
   {
     type: 'salary_change',
-    title: 'Salary Adjustment',
+    title: 'Job Change / Salary',
     description: 'Simulate a 15% raise or pay decrease on monthly surplus and cash flow',
     icon: TrendingUp,
     color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    defaultAmount: 15000,
-    defaultName: 'Annual Merit Raise',
+    defaultAmount: 20000,
+    defaultName: 'New Job Offer',
     percentage: 15
   },
   {

@@ -213,6 +213,63 @@ export default function AnalyticsPage() {
               </div>
             </div>
           )}
+
+          {/* Recurring Subscriptions Intelligence (PS #3) */}
+          {analytics?.recurring_subscriptions && analytics.recurring_subscriptions.length > 0 && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Detected Recurring Subscriptions</h3>
+                  <p className="text-xs text-slate-400">
+                    Recurring monthly commitments, streaming memberships, and utilities
+                  </p>
+                </div>
+                <div className="text-xs font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-3 py-1 rounded-xl self-start sm:self-auto">
+                  Total Drain: {formatCurrency(analytics.total_monthly_subscriptions, currency)}/mo ({formatCurrency(analytics.total_monthly_subscriptions * 12, currency)}/yr)
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-800 text-slate-400 font-semibold">
+                    <tr>
+                      <th className="pb-3">Subscription</th>
+                      <th className="pb-3">Category</th>
+                      <th className="pb-3">Frequency</th>
+                      <th className="pb-3">Last Billed</th>
+                      <th className="pb-3 text-right">Monthly Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                    {analytics.recurring_subscriptions.map((sub, idx) => (
+                      <tr key={idx} className="hover:bg-slate-800/30">
+                        <td className="py-3 font-semibold text-white">
+                          <div className="flex items-center gap-2">
+                            <span>{sub.name}</span>
+                            {sub.is_dormant_risk && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                Review Usage
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3">
+                          <span className="px-2 py-0.5 rounded bg-slate-800 text-[10px] border border-slate-700">
+                            {sub.category}
+                          </span>
+                        </td>
+                        <td className="py-3 text-slate-400">{sub.billing_frequency}</td>
+                        <td className="py-3 font-mono text-[11px] text-slate-400">{formatDate(sub.last_billed)}</td>
+                        <td className="py-3 text-right font-bold text-sky-400">
+                          {formatCurrency(sub.amount, currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

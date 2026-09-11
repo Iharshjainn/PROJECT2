@@ -60,20 +60,25 @@ def build_ai_context(
     # -------------------------------------------------------------
     # 1. SCENARIO / AFFORDABILITY INTENT DETECTION
     # -------------------------------------------------------------
+    # -------------------------------------------------------------
+    # 1. SCENARIO / AFFORDABILITY INTENT DETECTION
+    # -------------------------------------------------------------
     is_affordability = any(phrase in msg_lower for phrase in [
         "can i afford", "should i buy", "worth buying", "can i buy", "purchase of", "planning to buy"
     ])
     
     is_scenario = any(phrase in msg_lower for phrase in [
         "what if", "scenario", "hypothetical", "suppose i", "if i spend", "if my salary",
-        "if my rent", "if i save"
+        "if my rent", "if i save", "take a loan", "new emi", "car emi"
     ])
 
     extracted_amount = extract_amount_from_text(user_message)
 
     if (is_affordability or is_scenario) and extracted_amount:
         # Determine scenario category
-        if "rent" in msg_lower or "expense" in msg_lower or "monthly" in msg_lower:
+        if "emi" in msg_lower or "car loan" in msg_lower or "personal loan" in msg_lower:
+            calc_result = calculate_scenario("new_emi", extracted_amount, "New EMI Commitment", analytics=analytics, goals=goals)
+        elif "rent" in msg_lower or "expense" in msg_lower or "monthly" in msg_lower:
             calc_result = calculate_scenario("expense_increase", extracted_amount, "Expense Hike", analytics=analytics)
         elif "salary" in msg_lower or "income" in msg_lower or "raise" in msg_lower:
             calc_result = calculate_scenario("salary_change", extracted_amount, "Salary Adjustment", analytics=analytics)
@@ -92,7 +97,35 @@ def build_ai_context(
         )
 
     # -------------------------------------------------------------
-    # 2. CATEGORY SPENDING INQUIRY
+    # 2. CASH FLOW & MONTH-END BALANCE PROJECTION
+    # -------------------------------------------------------------
+    if any(k in msg_lower for k in ["cash flow", "month end", "shortfall", "deficit", "balance next month", "project", "run out of money"]):
+        context_data["cash_flow_projection"] = analytics.get("cash_flow_projection", {})
+
+    # -------------------------------------------------------------
+    # 3. RECURRING SUBSCRIPTIONS INQUIRY
+    # -------------------------------------------------------------
+    if any(k in msg_lower for k in ["subscription", "recurring", "netflix", "spotify", "gym", "membership", "broadband", "cancel"]):
+        context_data["subscription_intelligence"] = {
+            "total_monthly_subscription_spend": analytics.get("total_monthly_subscriptions", 0.0),
+            "detected_subscriptions": analytics.get("recurring_subscriptions", [])
+        }
+
+    # -------------------------------------------------------------
+    # 4. LIABILITY INTELLIGENCE & DEBT RANKING
+    # -------------------------------------------------------------
+    if any(k in msg_lower for k in ["debt", "loan", "clear first", "pay off first", "avalanche", "snowball", "interest rate", "credit card"]):
+        context_data["liability_intelligence"] = analytics.get("liability_intelligence", {})
+
+    # -------------------------------------------------------------
+    # 5. ACTIONABLE ALERTS
+    # -------------------------------------------------------------
+    alerts = analytics.get("actionable_alerts", [])
+    if alerts:
+        context_data["current_actionable_alerts"] = alerts
+
+    # -------------------------------------------------------------
+    # 6. CATEGORY SPENDING INQUIRY
     # -------------------------------------------------------------
     top_cats = analytics.get("top_categories", [])
     matched_cat = None
@@ -116,7 +149,7 @@ def build_ai_context(
         context_data["top_expense_categories"] = top_cats[:5]
 
     # -------------------------------------------------------------
-    # 3. HABIT & TREND INQUIRY
+    # 7. HABIT & TREND INQUIRY
     # -------------------------------------------------------------
     if any(k in msg_lower for k in ["habit", "overspending", "trend", "improve", "cut", "reduce", "waste"]):
         context_data["habit_analytics"] = {
@@ -128,7 +161,7 @@ def build_ai_context(
         }
 
     # -------------------------------------------------------------
-    # 4. GOALS INQUIRY
+    # 8. GOALS INQUIRY
     # -------------------------------------------------------------
     if any(k in msg_lower for k in ["goal", "target", "emergency fund", "future", "retire"]):
         context_data["active_financial_goals"] = [
@@ -143,7 +176,7 @@ def build_ai_context(
         ]
 
     # -------------------------------------------------------------
-    # 5. RECENT CASH FLOW TRENDS
+    # 9. RECENT CASH FLOW TRENDS
     # -------------------------------------------------------------
     trends = analytics.get("monthly_trends", [])
     if trends:

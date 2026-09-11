@@ -370,6 +370,98 @@ def calculate_scenario(
             }
         }
 
+    # -------------------------------------------------------------
+    # 6. NEW EMI / LOAN COMMITMENT
+    # -------------------------------------------------------------
+    elif scenario_type == "new_emi":
+        emi_amt = float(amount)
+        current_monthly_debt = analytics.get("total_monthly_debt", 0.0)
+        new_monthly_debt = current_monthly_debt + emi_amt
+        new_debt_to_income = (new_monthly_debt / monthly_income * 100.0) if monthly_income > 0 else 100.0
+
+        current_savings = monthly_income - monthly_expenses
+        new_monthly_savings = current_savings - emi_amt
+        new_savings_rate = (new_monthly_savings / monthly_income * 100.0) if monthly_income > 0 else 0.0
+        annual_emi_commitment = emi_amt * 12.0
+
+        # Goal impact: Calculate delay on primary goals
+        goal_impacts = []
+        for g in goals[:3]:
+            rem_amt = float(g.get("remaining_amount") or (float(g.get("target_amount", 0.0)) - float(g.get("current_amount", 0.0))))
+            if rem_amt > 0:
+                months_current = (rem_amt / current_savings) if current_savings > 0 else 999
+                months_new = (rem_amt / new_monthly_savings) if new_monthly_savings > 0 else 999
+                delay = max(0, round(months_new - months_current, 1))
+                goal_impacts.append({
+                    "goal_name": g.get("name"),
+                    "months_before": round(months_current, 1),
+                    "months_after": round(months_new, 1),
+                    "delay_months": delay
+                })
+
+        if new_monthly_savings < 0:
+            status = "not_advisable"
+            summary = (
+                f"Not advisable. Adding an EMI of ₹{emi_amt:,.2f}/month creates a negative monthly cash flow "
+                f"deficit of ₹{abs(new_monthly_savings):,.2f}/month. Debt-to-income jumps to {new_debt_to_income:.1f}%."
+            )
+        elif new_debt_to_income > 40.0 or new_savings_rate < 10.0:
+            status = "caution"
+            summary = (
+                f"Proceed with caution. A new EMI of ₹{emi_amt:,.2f}/month raises your debt-to-income ratio to {new_debt_to_income:.1f}% "
+                f"and drops your monthly savings from ₹{current_savings:,.2f} down to ₹{new_monthly_savings:,.2f} (savings rate: {new_savings_rate:.1f}%)."
+            )
+        else:
+            status = "affordable"
+            summary = (
+                f"Affordable. You can take on this EMI of ₹{emi_amt:,.2f}/month ({item_name}). Your debt-to-income remains healthy "
+                f"at {new_debt_to_income:.1f}% and monthly savings will be ₹{new_monthly_savings:,.2f}."
+            )
+
+        recommendations = [
+            f"Annual EMI outflow is ₹{annual_emi_commitment:,.2f}.",
+            f"Ensure loan interest rate is below 12% and tenure fits your long-term career stability."
+        ]
+        if goal_impacts:
+            for gi in goal_impacts:
+                if gi["delay_months"] > 0:
+                    recommendations.append(f"Notice: This EMI delays your '{gi['goal_name']}' target milestone by approx {gi['delay_months']} months.")
+
+        return {
+            "scenario_type": scenario_type,
+            "title": f"New EMI Commitment: {item_name} (₹{emi_amt:,.2f}/mo)",
+            "status": status,
+            "summary": summary,
+            "details": {
+                "emi_amount": round(emi_amt, 2),
+                "annual_commitment": round(annual_emi_commitment, 2),
+                "debt_to_income_before": round(analytics.get("debt_to_income_ratio", 0.0), 2),
+                "debt_to_income_after": round(new_debt_to_income, 2),
+                "new_monthly_savings": round(new_monthly_savings, 2),
+                "new_savings_rate": round(new_savings_rate, 2),
+                "goal_impacts": goal_impacts
+            },
+            "metrics_before": {
+                "monthly_debt": round(current_monthly_debt, 2),
+                "debt_to_income": round(analytics.get("debt_to_income_ratio", 0.0), 2),
+                "monthly_savings": round(current_savings, 2),
+                "savings_rate": round(current_savings_rate, 2)
+            },
+            "metrics_after": {
+                "monthly_debt": round(new_monthly_debt, 2),
+                "debt_to_income": round(new_debt_to_income, 2),
+                "monthly_savings": round(new_monthly_savings, 2),
+                "savings_rate": round(new_savings_rate, 2)
+            },
+            "recommendations": recommendations,
+            "authoritative_math": {
+                "emi_amount": round(emi_amt, 2),
+                "new_debt_to_income": round(new_debt_to_income, 2),
+                "new_monthly_savings": round(new_monthly_savings, 2),
+                "new_savings_rate": round(new_savings_rate, 2)
+            }
+        }
+
     else:
         return {
             "scenario_type": scenario_type,

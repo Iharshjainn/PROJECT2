@@ -15,7 +15,10 @@ import {
   Sparkles,
   PieChart as PieIcon,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Bell,
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -185,6 +188,114 @@ export default function DashboardPage() {
           color="emerald"
         />
       </div>
+
+      {/* Actionable Alerts (PS #3: Unusual spending, upcoming large debits, subscriptions) */}
+      {data?.actionable_alerts && data.actionable_alerts.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-amber-400" />
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Actionable Alerts</h2>
+            </div>
+            <span className="text-[11px] text-slate-400">{data.actionable_alerts.length} active notifications</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {data.actionable_alerts.map((alert, idx) => (
+              <div
+                key={idx}
+                className={`p-4 rounded-2xl border transition-all ${
+                  alert.severity === 'danger'
+                    ? 'bg-rose-950/20 border-rose-500/30 text-rose-300'
+                    : alert.severity === 'warning'
+                    ? 'bg-amber-950/20 border-amber-500/30 text-amber-300'
+                    : 'bg-sky-950/20 border-sky-500/30 text-sky-300'
+                }`}
+              >
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                    alert.severity === 'danger' ? 'text-rose-400' : alert.severity === 'warning' ? 'text-amber-400' : 'text-sky-400'
+                  }`} />
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-white">{alert.title}</h4>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">{alert.message}</p>
+                    {alert.numbers_behind && (
+                      <div className="pt-1.5 text-[10px] font-mono text-slate-400 border-t border-slate-800/60 mt-1">
+                        <span className="font-semibold text-slate-300">Data backing: </span>
+                        {alert.numbers_behind}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cash Flow View & Month-End Balance Projection (PS #3) */}
+      {data?.cash_flow_projection && hasTransactions && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-emerald-400" />
+              <div>
+                <h3 className="text-sm font-bold text-white">Cash Flow View & Month-End Balance Projection</h3>
+                <p className="text-[11px] text-slate-400">Committed inflows & outflows projected to the last day of the month</p>
+              </div>
+            </div>
+            {data.cash_flow_projection.shortfall_detected ? (
+              <span className="px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 self-start sm:self-auto">
+                <AlertCircle className="w-3.5 h-3.5" />
+                Shortfall Warning: -{formatCurrency(data.cash_flow_projection.shortfall_gap, currency)}
+              </span>
+            ) : (
+              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 self-start sm:self-auto">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Healthy Cashflow Surplus Projected
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <div className="text-[10px] uppercase font-bold text-slate-400">Current Liquid Cash</div>
+              <div className="text-sm font-bold text-white mt-1">
+                {formatCurrency(data.cash_flow_projection.current_liquid_balance, currency)}
+              </div>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <div className="text-[10px] uppercase font-bold text-sky-400">+ Committed Inflows</div>
+              <div className="text-sm font-bold text-sky-400 mt-1">
+                +{formatCurrency(data.cash_flow_projection.committed_inflows, currency)}
+              </div>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <div className="text-[10px] uppercase font-bold text-amber-400">- Committed Outflows</div>
+              <div className="text-sm font-bold text-amber-400 mt-1">
+                -{formatCurrency(data.cash_flow_projection.committed_outflows, currency)}
+              </div>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <div className="text-[10px] uppercase font-bold text-rose-400">- Projected Discretionary</div>
+              <div className="text-sm font-bold text-rose-400 mt-1">
+                -{formatCurrency(data.cash_flow_projection.projected_discretionary, currency)}
+              </div>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 col-span-2 sm:col-span-1">
+              <div className="text-[10px] uppercase font-bold text-emerald-400">= Projected Month-End</div>
+              <div className={`text-sm font-black mt-1 ${
+                data.cash_flow_projection.projected_month_end_balance >= 0 ? 'text-emerald-400' : 'text-rose-400'
+              }`}>
+                {formatCurrency(data.cash_flow_projection.projected_month_end_balance, currency)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* If brand new user with NO transactions yet, display onboarding checklist */}
       {!hasTransactions && (
