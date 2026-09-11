@@ -20,6 +20,114 @@ import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 
+function parseInlineMarkdown(text) {
+  if (!text) return text;
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={i} className="font-semibold text-white">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
+}
+
+function renderFormattedContent(text) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let currentList = [];
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      elements.push(
+        <ul key={`ul-${elements.length}`} className="list-disc list-outside ml-4 space-y-1 my-1.5 text-slate-200">
+          {currentList.map((item, i) => (
+            <li key={i} className="leading-relaxed">
+              {parseInlineMarkdown(item)}
+            </li>
+          ))}
+        </ul>
+      );
+      currentList = [];
+    }
+  };
+
+  lines.forEach((line, idx) => {
+    const trimmed = line.trim();
+
+    if (trimmed === '---' || trimmed === '***') {
+      flushList();
+      elements.push(<hr key={`hr-${idx}`} className="border-slate-800 my-2.5" />);
+      return;
+    }
+
+    if (trimmed.startsWith('### ')) {
+      flushList();
+      elements.push(
+        <h3 key={`h3-${idx}`} className="text-sm font-bold text-emerald-400 mt-2.5 mb-1">
+          {parseInlineMarkdown(trimmed.replace(/^###\s+/, ''))}
+        </h3>
+      );
+      return;
+    }
+
+    if (trimmed.startsWith('## ')) {
+      flushList();
+      elements.push(
+        <h2 key={`h2-${idx}`} className="text-base font-extrabold text-white mt-3 mb-1.5">
+          {parseInlineMarkdown(trimmed.replace(/^##\s+/, ''))}
+        </h2>
+      );
+      return;
+    }
+
+    if (trimmed.startsWith('# ')) {
+      flushList();
+      elements.push(
+        <h1 key={`h1-${idx}`} className="text-lg font-extrabold text-white mt-3 mb-1.5">
+          {parseInlineMarkdown(trimmed.replace(/^#\s+/, ''))}
+        </h1>
+      );
+      return;
+    }
+
+    if (/^[\*\-]\s+/.test(trimmed)) {
+      currentList.push(trimmed.replace(/^[\*\-]\s+/, ''));
+      return;
+    }
+
+    if (/^\d+\.\s+/.test(trimmed)) {
+      flushList();
+      elements.push(
+        <div key={`num-${idx}`} className="flex gap-2 my-1 pl-1">
+          <span className="font-bold text-emerald-400">{trimmed.match(/^\d+\./)[0]}</span>
+          <span className="leading-relaxed">{parseInlineMarkdown(trimmed.replace(/^\d+\.\s+/, ''))}</span>
+        </div>
+      );
+      return;
+    }
+
+    if (!trimmed) {
+      flushList();
+      return;
+    }
+
+    flushList();
+    elements.push(
+      <p key={`p-${idx}`} className="my-1 leading-relaxed">
+        {parseInlineMarkdown(trimmed)}
+      </p>
+    );
+  });
+
+  flushList();
+  return elements;
+}
+
 export default function AiAdvisorPage() {
   const { user, currency } = useAuth();
   const [searchParams] = useSearchParams();
@@ -300,8 +408,12 @@ export default function AiAdvisorPage() {
                         : 'bg-slate-950/90 text-slate-200 border border-slate-800/80 rounded-bl-none'
                     }`}>
                       {/* Formatted body */}
-                      <div className="whitespace-pre-wrap space-y-2">
-                        {msg.content}
+                      <div className="space-y-1.5 text-xs sm:text-sm leading-relaxed">
+                        {isUser ? (
+                          <div className="whitespace-pre-wrap">{msg.content}</div>
+                        ) : (
+                          renderFormattedContent(msg.content)
+                        )}
                       </div>
 
                       {/* Authoritative Scenario Card if attached */}

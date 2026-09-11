@@ -120,28 +120,55 @@ async def generate_chat_response(
         "parts": [{"text": user_message}]
     })
 
-    # Direct async HTTP REST with gemini-3.6-flash
-    for model_name in ["gemini-3.6-flash", "gemini-flash-latest"]:
+    # Candidate configurations with fallback:
+    # 1. gemini-flash-lite-latest (fastest, most reliable, avoids 503 high-demand spikes)
+    # 2. gemini-flash-latest with thinkingBudget: 0 (prevents thinking tokens from eating the response budget)
+    # 3. gemini-flash-latest standard configuration
+    model_configs = [
+        {
+            "model": "gemini-flash-lite-latest",
+            "config": {"temperature": 0.4, "maxOutputTokens": 4096}
+        },
+        {
+            "model": "gemini-flash-latest",
+            "config": {
+                "temperature": 0.4,
+                "maxOutputTokens": 4096,
+                "thinkingConfig": {"thinkingBudget": 0}
+            }
+        },
+        {
+            "model": "gemini-flash-latest",
+            "config": {"temperature": 0.4, "maxOutputTokens": 4096}
+        }
+    ]
+
+    for item in model_configs:
+        model_name = item["model"]
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         payload = {
             "systemInstruction": {"parts": [{"text": full_system_instruction}]},
             "contents": contents,
-            "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1024}
+            "generationConfig": item["config"]
         }
         try:
-            async with httpx.AsyncClient(timeout=45.0) as client:
+            async with httpx.AsyncClient(timeout=40.0) as client:
                 resp = await client.post(url, json=payload)
                 if resp.status_code == 200:
                     data = resp.json()
                     candidates = data.get("candidates", [])
                     if candidates and "content" in candidates[0]:
-                        parts = candidates[0]["content"].get("parts", [])
-                        text_response = "".join(p.get("text", "") for p in parts)
-                        return {
-                            "content": text_response.strip(),
-                            "structured_data": structured_context.get("authoritative_scenario_calculation"),
-                            "suggested_follow_ups": _build_follow_ups(user_message)
-                        }
+                        cand = candidates[0]
+                        parts = cand["content"].get("parts", [])
+                        text_response = "".join(p.get("text", "") for p in parts if "text" in p).strip()
+                        if text_response:
+                            return {
+                                "content": text_response,
+                                "structured_data": structured_context.get("authoritative_scenario_calculation"),
+                                "suggested_follow_ups": _build_follow_ups(user_message)
+                            }
+                else:
+                    logger.warning(f"Gemini API returned status {resp.status_code} for {model_name}: {resp.text[:150]}")
         except Exception as http_err:
             logger.warning(f"REST call to {model_name} failed: {http_err}")
 
