@@ -22,7 +22,7 @@ api.interceptors.request.use(async (config) => {
     }
     
     // Fallback demo/local session token
-    const localUser = localStorage.getItem('aura_demo_user');
+    const localUser = localStorage.getItem('prospera_active_user') || localStorage.getItem('aura_demo_user');
     if (localUser) {
       const user = JSON.parse(localUser);
       config.headers.Authorization = `Bearer test_user_${user.id || 'demo_1'}`;

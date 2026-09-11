@@ -12,6 +12,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [signedUp, setSignedUp] = useState(false);
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,11 +29,15 @@ export default function SignupPage() {
     setError(null);
 
     try {
-      await signUp(email, password, fullName);
+      const data = await signUp(email, password, fullName);
       setSignedUp(true);
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1200);
+      if (data?.session || data?.user?.id?.startsWith('local_')) {
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 1200);
+      } else {
+        setNeedsEmailVerification(true);
+      }
     } catch (err) {
       setError(err.message || 'Failed to create account.');
     } finally {
@@ -62,8 +67,27 @@ export default function SignupPage() {
               <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-white">Account Created!</h3>
-              <p className="text-xs text-slate-400">Redirecting to your financial dashboard...</p>
+              {needsEmailVerification ? (
+                <>
+                  <h3 className="text-base font-bold text-white">Check your email</h3>
+                  <p className="text-xs text-slate-400">
+                    We sent a confirmation email to <span className="text-emerald-400 font-semibold">{email}</span>. Click the link in the email to activate your account, then sign in!
+                  </p>
+                  <div className="pt-3">
+                    <Link
+                      to="/login"
+                      className="inline-block py-2.5 px-5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl text-xs shadow-md shadow-emerald-500/10 transition-all"
+                    >
+                      Proceed to Sign In
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-base font-bold text-white">Account Created!</h3>
+                  <p className="text-xs text-slate-400">Redirecting to your financial dashboard...</p>
+                </>
+              )}
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">

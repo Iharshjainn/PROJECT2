@@ -3,6 +3,8 @@ import uuid
 from datetime import datetime
 from app.core.database import get_supabase, get_supabase_admin
 from app.core.config import settings
+import json
+from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,14 +21,51 @@ _IN_MEMORY_DB: Dict[str, Dict[str, Dict[str, Any]]] = {
     "chatbot_messages": {}
 }
 
+LOCAL_DB_FILE = Path(__file__).resolve().parent.parent.parent / "local_storage_db.json"
+
+def _load_local_db():
+    if LOCAL_DB_FILE.exists():
+        try:
+            with open(LOCAL_DB_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                for k in _IN_MEMORY_DB:
+                    if k in data and isinstance(data[k], dict):
+                        _IN_MEMORY_DB[k].update(data[k])
+                logger.info(f"Loaded local database from {LOCAL_DB_FILE}")
+        except Exception as e:
+            logger.warning(f"Failed to load local database: {e}")
+
+def _save_local_db():
+    try:
+        with open(LOCAL_DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(_IN_MEMORY_DB, f, indent=2)
+    except Exception as e:
+        logger.warning(f"Failed to save local database: {e}")
+
+# Initial load from disk if file exists
+_load_local_db()
+
+def is_valid_uuid(val: Any) -> bool:
+    if not val:
+        return False
+    try:
+        uuid.UUID(str(val))
+        return True
+    except (ValueError, AttributeError):
+        return False
+
 class DataService:
     """
     Data access service enforcing strict user_id scoping across all queries.
-    Uses Supabase PostgreSQL when credentials exist, with in-memory persistence fallback for tests.
+    Uses Supabase PostgreSQL when credentials exist and user_id is a valid UUID,
+    with local disk persistence fallback for tests and offline development.
     """
     def __init__(self, user_id: str):
         self.user_id = str(user_id)
-        self.supabase = get_supabase_admin() or get_supabase()
+        if is_valid_uuid(self.user_id):
+            self.supabase = get_supabase_admin() or get_supabase()
+        else:
+            self.supabase = None
 
     # -------------------------------------------------------------
     # PROFILES
@@ -65,6 +104,7 @@ class DataService:
             "updated_at": datetime.now().isoformat()
         }
         _IN_MEMORY_DB["profiles"][p_id] = profile
+        _save_local_db()
         return profile
 
     async def update_profile(self, updates: Dict[str, Any]) -> Dict[str, Any]:
@@ -80,6 +120,7 @@ class DataService:
             if p["user_id"] == self.user_id:
                 p.update(updates)
                 p["updated_at"] = datetime.now().isoformat()
+                _save_local_db()
                 return p
         return await self.get_or_create_profile()
 
@@ -107,6 +148,7 @@ class DataService:
                 logger.warning(f"Supabase create account error: {e}")
 
         _IN_MEMORY_DB["accounts"][record["id"]] = record
+        _save_local_db()
         return record
 
     async def delete_account(self, account_id: str) -> bool:
@@ -119,6 +161,7 @@ class DataService:
 
         if account_id in _IN_MEMORY_DB["accounts"] and _IN_MEMORY_DB["accounts"][account_id]["user_id"] == self.user_id:
             del _IN_MEMORY_DB["accounts"][account_id]
+            _save_local_db()
             return True
         return False
 
@@ -159,6 +202,8 @@ class DataService:
                     acct = item.get("accounts")
                     item["account_name"] = acct.get("name") if isinstance(acct, dict) else None
                     out.append(item)
+                    _IN_MEMORY_DB["transactions"][item["id"]] = item
+                _save_local_db()
                 return out
             except Exception as e:
                 logger.warning(f"Supabase transactions fetch error: {e}")
@@ -199,11 +244,15 @@ class DataService:
             try:
                 res = self.supabase.table("transactions").insert(record).execute()
                 if res.data:
-                    return res.data[0]
+                    saved = res.data[0]
+                    _IN_MEMORY_DB["transactions"][saved["id"]] = saved
+                    _save_local_db()
+                    return saved
             except Exception as e:
                 logger.warning(f"Supabase create transaction error: {e}")
 
         _IN_MEMORY_DB["transactions"][record["id"]] = record
+        _save_local_db()
         return record
 
     async def batch_insert_transactions(self, items: List[Dict[str, Any]]) -> int:
@@ -225,13 +274,18 @@ class DataService:
         if self.supabase:
             try:
                 res = self.supabase.table("transactions").insert(records).execute()
-                return len(res.data) if res.data else len(records)
+                saved_records = res.data if res.data else records
+                for r in saved_records:
+                    _IN_MEMORY_DB["transactions"][r["id"]] = r
+                _save_local_db()
+                return len(saved_records)
             except Exception as e:
                 logger.warning(f"Supabase batch insert error: {e}")
 
         for r in records:
             _IN_MEMORY_DB["transactions"][r["id"]] = r
             count += 1
+        _save_local_db()
         return count
 
     async def update_transaction(self, tx_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -243,12 +297,16 @@ class DataService:
             try:
                 res = self.supabase.table("transactions").update(updates).eq("id", tx_id).eq("user_id", self.user_id).execute()
                 if res.data:
-                    return res.data[0]
+                    saved = res.data[0]
+                    _IN_MEMORY_DB["transactions"][tx_id] = saved
+                    _save_local_db()
+                    return saved
             except Exception as e:
                 logger.warning(f"Supabase update transaction error: {e}")
 
         if tx_id in _IN_MEMORY_DB["transactions"] and _IN_MEMORY_DB["transactions"][tx_id]["user_id"] == self.user_id:
             _IN_MEMORY_DB["transactions"][tx_id].update(updates)
+            _save_local_db()
             return _IN_MEMORY_DB["transactions"][tx_id]
         return None
 
@@ -256,14 +314,14 @@ class DataService:
         if self.supabase:
             try:
                 self.supabase.table("transactions").delete().eq("id", tx_id).eq("user_id", self.user_id).execute()
-                return True
             except Exception as e:
                 logger.warning(f"Supabase delete transaction error: {e}")
 
         if tx_id in _IN_MEMORY_DB["transactions"] and _IN_MEMORY_DB["transactions"][tx_id]["user_id"] == self.user_id:
             del _IN_MEMORY_DB["transactions"][tx_id]
+            _save_local_db()
             return True
-        return False
+        return True
 
     # -------------------------------------------------------------
     # ASSETS
@@ -284,11 +342,15 @@ class DataService:
             try:
                 res = self.supabase.table("assets").insert(record).execute()
                 if res.data:
-                    return res.data[0]
+                    saved = res.data[0]
+                    _IN_MEMORY_DB["assets"][saved["id"]] = saved
+                    _save_local_db()
+                    return saved
             except Exception as e:
                 logger.warning(f"Supabase create asset error: {e}")
 
         _IN_MEMORY_DB["assets"][record["id"]] = record
+        _save_local_db()
         return record
 
     async def update_asset(self, asset_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -297,12 +359,16 @@ class DataService:
             try:
                 res = self.supabase.table("assets").update(updates).eq("id", asset_id).eq("user_id", self.user_id).execute()
                 if res.data:
-                    return res.data[0]
+                    saved = res.data[0]
+                    _IN_MEMORY_DB["assets"][asset_id] = saved
+                    _save_local_db()
+                    return saved
             except Exception as e:
                 logger.warning(f"Supabase update asset error: {e}")
 
         if asset_id in _IN_MEMORY_DB["assets"] and _IN_MEMORY_DB["assets"][asset_id]["user_id"] == self.user_id:
             _IN_MEMORY_DB["assets"][asset_id].update(updates)
+            _save_local_db()
             return _IN_MEMORY_DB["assets"][asset_id]
         return None
 
@@ -310,14 +376,14 @@ class DataService:
         if self.supabase:
             try:
                 self.supabase.table("assets").delete().eq("id", asset_id).eq("user_id", self.user_id).execute()
-                return True
             except Exception as e:
                 logger.warning(f"Supabase delete asset error: {e}")
 
         if asset_id in _IN_MEMORY_DB["assets"] and _IN_MEMORY_DB["assets"][asset_id]["user_id"] == self.user_id:
             del _IN_MEMORY_DB["assets"][asset_id]
+            _save_local_db()
             return True
-        return False
+        return True
 
     # -------------------------------------------------------------
     # LIABILITIES
@@ -338,11 +404,15 @@ class DataService:
             try:
                 res = self.supabase.table("liabilities").insert(record).execute()
                 if res.data:
-                    return res.data[0]
+                    saved = res.data[0]
+                    _IN_MEMORY_DB["liabilities"][saved["id"]] = saved
+                    _save_local_db()
+                    return saved
             except Exception as e:
                 logger.warning(f"Supabase create liability error: {e}")
 
         _IN_MEMORY_DB["liabilities"][record["id"]] = record
+        _save_local_db()
         return record
 
     async def update_liability(self, liability_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -351,12 +421,16 @@ class DataService:
             try:
                 res = self.supabase.table("liabilities").update(updates).eq("id", liability_id).eq("user_id", self.user_id).execute()
                 if res.data:
-                    return res.data[0]
+                    saved = res.data[0]
+                    _IN_MEMORY_DB["liabilities"][liability_id] = saved
+                    _save_local_db()
+                    return saved
             except Exception as e:
                 logger.warning(f"Supabase update liability error: {e}")
 
         if liability_id in _IN_MEMORY_DB["liabilities"] and _IN_MEMORY_DB["liabilities"][liability_id]["user_id"] == self.user_id:
             _IN_MEMORY_DB["liabilities"][liability_id].update(updates)
+            _save_local_db()
             return _IN_MEMORY_DB["liabilities"][liability_id]
         return None
 
@@ -364,14 +438,14 @@ class DataService:
         if self.supabase:
             try:
                 self.supabase.table("liabilities").delete().eq("id", liability_id).eq("user_id", self.user_id).execute()
-                return True
             except Exception as e:
                 logger.warning(f"Supabase delete liability error: {e}")
 
         if liability_id in _IN_MEMORY_DB["liabilities"] and _IN_MEMORY_DB["liabilities"][liability_id]["user_id"] == self.user_id:
             del _IN_MEMORY_DB["liabilities"][liability_id]
+            _save_local_db()
             return True
-        return False
+        return True
 
     # -------------------------------------------------------------
     # FINANCIAL GOALS
@@ -425,11 +499,15 @@ class DataService:
             try:
                 res = self.supabase.table("financial_goals").insert(record).execute()
                 if res.data:
-                    return self._enrich_goals(res.data)[0]
+                    saved = res.data[0]
+                    _IN_MEMORY_DB["financial_goals"][saved["id"]] = saved
+                    _save_local_db()
+                    return self._enrich_goals([saved])[0]
             except Exception as e:
                 logger.warning(f"Supabase create goal error: {e}")
 
         _IN_MEMORY_DB["financial_goals"][record["id"]] = record
+        _save_local_db()
         return self._enrich_goals([record])[0]
 
     async def update_goal(self, goal_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -441,12 +519,16 @@ class DataService:
             try:
                 res = self.supabase.table("financial_goals").update(updates).eq("id", goal_id).eq("user_id", self.user_id).execute()
                 if res.data:
-                    return self._enrich_goals(res.data)[0]
+                    saved = res.data[0]
+                    _IN_MEMORY_DB["financial_goals"][goal_id] = saved
+                    _save_local_db()
+                    return self._enrich_goals([saved])[0]
             except Exception as e:
                 logger.warning(f"Supabase update goal error: {e}")
 
         if goal_id in _IN_MEMORY_DB["financial_goals"] and _IN_MEMORY_DB["financial_goals"][goal_id]["user_id"] == self.user_id:
             _IN_MEMORY_DB["financial_goals"][goal_id].update(updates)
+            _save_local_db()
             return self._enrich_goals([_IN_MEMORY_DB["financial_goals"][goal_id]])[0]
         return None
 
@@ -454,14 +536,14 @@ class DataService:
         if self.supabase:
             try:
                 self.supabase.table("financial_goals").delete().eq("id", goal_id).eq("user_id", self.user_id).execute()
-                return True
             except Exception as e:
                 logger.warning(f"Supabase delete goal error: {e}")
 
         if goal_id in _IN_MEMORY_DB["financial_goals"] and _IN_MEMORY_DB["financial_goals"][goal_id]["user_id"] == self.user_id:
             del _IN_MEMORY_DB["financial_goals"][goal_id]
+            _save_local_db()
             return True
-        return False
+        return True
 
     # -------------------------------------------------------------
     # CHATBOT CONVERSATIONS & MESSAGES
@@ -491,11 +573,15 @@ class DataService:
             try:
                 res = self.supabase.table("chatbot_conversations").insert(record).execute()
                 if res.data:
-                    return res.data[0]
+                    saved = res.data[0]
+                    _IN_MEMORY_DB["chatbot_conversations"][conv_id] = saved
+                    _save_local_db()
+                    return saved
             except Exception as e:
                 logger.warning(f"Supabase create conversation error: {e}")
 
         _IN_MEMORY_DB["chatbot_conversations"][conv_id] = record
+        _save_local_db()
         return record
 
     async def get_messages(self, conversation_id: str) -> List[Dict[str, Any]]:
@@ -526,20 +612,25 @@ class DataService:
                 # Also touch conversation updated_at
                 self.supabase.table("chatbot_conversations").update({"updated_at": datetime.now().isoformat()}).eq("id", conversation_id).execute()
                 if res.data:
-                    return res.data[0]
+                    saved = res.data[0]
+                    _IN_MEMORY_DB["chatbot_messages"][msg_id] = saved
+                    if conversation_id in _IN_MEMORY_DB["chatbot_conversations"]:
+                        _IN_MEMORY_DB["chatbot_conversations"][conversation_id]["updated_at"] = datetime.now().isoformat()
+                    _save_local_db()
+                    return saved
             except Exception as e:
                 logger.warning(f"Supabase add message error: {e}")
 
         _IN_MEMORY_DB["chatbot_messages"][msg_id] = record
         if conversation_id in _IN_MEMORY_DB["chatbot_conversations"]:
             _IN_MEMORY_DB["chatbot_conversations"][conversation_id]["updated_at"] = datetime.now().isoformat()
+        _save_local_db()
         return record
 
     async def delete_conversation(self, conversation_id: str) -> bool:
         if self.supabase:
             try:
                 self.supabase.table("chatbot_conversations").delete().eq("id", conversation_id).eq("user_id", self.user_id).execute()
-                return True
             except Exception as e:
                 logger.warning(f"Supabase delete conversation error: {e}")
 
@@ -549,5 +640,6 @@ class DataService:
             to_del = [mid for mid, m in _IN_MEMORY_DB["chatbot_messages"].items() if m["conversation_id"] == conversation_id]
             for mid in to_del:
                 del _IN_MEMORY_DB["chatbot_messages"][mid]
+            _save_local_db()
             return True
-        return False
+        return True
