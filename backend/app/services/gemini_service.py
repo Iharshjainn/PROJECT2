@@ -3,7 +3,6 @@ import logging
 import httpx
 from typing import Dict, Any, List, Optional
 from app.core.config import settings
-import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
@@ -106,48 +105,31 @@ async def generate_chat_response(
         f"```json\n{context_str}\n```"
     )
 
-    # Method 1: Use google-generativeai SDK with gemini-3.6-flash
-    try:
-        genai.configure(api_key=api_key)
-        for model_name in ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash"]:
-            try:
-                model = genai.GenerativeModel(
-                    model_name=model_name,
-                    system_instruction=full_system_instruction
-                )
-                
-                # Format conversation history
-                chat_history = []
-                for msg in conversation_history[-6:]:
-                    role = "user" if msg.get("role") == "user" else "model"
-                    chat_history.append({"role": role, "parts": [msg.get("content", "")]})
+    # Format conversation contents for Gemini API
+    contents = []
+    for msg in conversation_history[-6:]:
+        role = "user" if msg.get("role") == "user" else "model"
+        contents.append({
+            "role": role,
+            "parts": [{"text": msg.get("content", "")}]
+        })
 
-                chat = model.start_chat(history=chat_history)
-                response = chat.send_message(user_message)
-                if response and response.text:
-                    return {
-                        "content": response.text.strip(),
-                        "structured_data": structured_context.get("authoritative_scenario_calculation"),
-                        "suggested_follow_ups": _build_follow_ups(user_message)
-                    }
-            except Exception as model_err:
-                logger.warning(f"Failed with {model_name}: {model_err}")
-                continue
-    except Exception as sdk_err:
-        logger.warning(f"SDK initialization failed, trying HTTP REST: {sdk_err}")
+    # Add current user query
+    contents.append({
+        "role": "user",
+        "parts": [{"text": user_message}]
+    })
 
-    # Method 2: Direct HTTP REST fallback
-    for m in ["gemini-3.6-flash", "gemini-flash-latest"]:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
+    # Direct async HTTP REST with gemini-3.6-flash
+    for model_name in ["gemini-3.6-flash", "gemini-flash-latest"]:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         payload = {
-            "system_instruction": {"parts": [{"text": full_system_instruction}]},
-            "contents": [
-                {"role": "user", "parts": [{"text": user_message}]}
-            ],
+            "systemInstruction": {"parts": [{"text": full_system_instruction}]},
+            "contents": contents,
             "generationConfig": {"temperature": 0.4, "maxOutputTokens": 1024}
         }
         try:
-            async with httpx.AsyncClient(timeout=20.0) as client:
+            async with httpx.AsyncClient(timeout=45.0) as client:
                 resp = await client.post(url, json=payload)
                 if resp.status_code == 200:
                     data = resp.json()
@@ -161,9 +143,9 @@ async def generate_chat_response(
                             "suggested_follow_ups": _build_follow_ups(user_message)
                         }
         except Exception as http_err:
-            logger.warning(f"HTTP REST call to {m} failed: {http_err}")
+            logger.warning(f"REST call to {model_name} failed: {http_err}")
 
-    # Safe fallback if AI endpoint experiences transient outage
+    # Fallback if API is unreachable
     scenario = structured_context.get("authoritative_scenario_calculation")
     if scenario:
         content = (
