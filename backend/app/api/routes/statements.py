@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
-from typing import Dict, Any, List
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from typing import Dict, Any, List, Optional
 from app.core.security import get_current_user, AuthenticatedUser
 from app.services.data_service import DataService
-from app.services.csv_parser import parse_csv_statement
+from app.services.csv_parser import parse_spreadsheet_statement, parse_csv_statement
 from app.services.pdf_parser import parse_pdf_statement
 from app.schemas.analytics import StatementPreviewResponse, StatementConfirmRequest, StatementConfirmResponse
 
@@ -10,18 +10,25 @@ router = APIRouter(prefix="/statements", tags=["Statements"])
 
 MAX_FILE_SIZE = 10 * 1024 * 1024 # 10MB limit
 
-@router.post("/csv-preview", response_model=StatementPreviewResponse)
-async def preview_csv_statement(
+@router.post("/preview", response_model=StatementPreviewResponse)
+async def preview_universal_statement(
     file: UploadFile = File(...),
+    password: Optional[str] = Form(None),
     user: AuthenticatedUser = Depends(get_current_user)
 ):
     """
-    Parses an uploaded CSV statement, auto-detects columns, normalizes schema,
-    categorizes merchants, and identifies potential duplicates against existing records.
-    Always provides a preview before any changes are committed.
+    Universal bank statement parser for CSV, Excel (.xlsx, .xls), and PDF statements.
+    - Deep preamble scanner skips metadata rows (1-30).
+    - Auto-detects columns for all major banks (HDFC, SBI, ICICI, Axis, Kotak, Chase, etc.).
+    - Extracts tables, categorizes merchants, and identifies duplicates.
     """
-    if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a .csv file.")
+    fname = file.filename.lower()
+    valid_exts = (".csv", ".xlsx", ".xls", ".pdf")
+    if not any(fname.endswith(ext) for ext in valid_exts):
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported format. Please upload a .csv, .xlsx, .xls, or .pdf bank statement."
+        )
 
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
@@ -31,12 +38,32 @@ async def preview_csv_statement(
     existing_txs = await db.get_transactions(limit=1000)
 
     try:
-        preview = parse_csv_statement(content, existing_transactions=existing_txs)
-        return preview
+        if fname.endswith(".pdf"):
+            return parse_pdf_statement(content, existing_transactions=existing_txs, password=password)
+        else:
+            return parse_spreadsheet_statement(content, filename=file.filename, existing_transactions=existing_txs)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process CSV statement: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process statement: {str(e)}")
+
+@router.post("/csv-preview", response_model=StatementPreviewResponse)
+async def preview_csv_statement(
+    file: UploadFile = File(...),
+    user: AuthenticatedUser = Depends(get_current_user)
+):
+    """Backwards compatibility route for CSV/Excel upload."""
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File exceeds the 10MB size limit.")
+    db = DataService(user.id)
+    existing_txs = await db.get_transactions(limit=1000)
+    try:
+        return parse_spreadsheet_statement(content, filename=file.filename, existing_transactions=existing_txs)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process statement: {str(e)}")
 
 @router.post("/pdf-preview", response_model=StatementPreviewResponse)
 async def preview_pdf_statement(

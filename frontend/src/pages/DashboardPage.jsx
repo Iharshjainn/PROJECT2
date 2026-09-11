@@ -38,8 +38,7 @@ import StatCard from '../components/StatCard';
 import HealthScoreGauge from '../components/HealthScoreGauge';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
-import CsvImportModal from '../components/CsvImportModal';
-import PdfImportModal from '../components/PdfImportModal';
+import StatementImportModal from '../components/StatementImportModal';
 
 const CATEGORY_COLORS = [
   '#10b981', '#06b6d4', '#8b5cf6', '#f59e0b', '#ec4899', '#3b82f6', '#14b8a6', '#64748b'
@@ -53,8 +52,7 @@ export default function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [csvModalOpen, setCsvModalOpen] = useState(false);
-  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [statementModalOpen, setStatementModalOpen] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
@@ -102,11 +100,11 @@ export default function DashboardPage() {
 
         <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={() => setCsvModalOpen(true)}
+            onClick={() => setStatementModalOpen(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 rounded-xl text-xs font-semibold shadow-sm transition-all"
           >
             <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Import Statement</span>
+            <span>Import Statement (PDF/Excel/CSV)</span>
           </button>
           
           <button
@@ -321,12 +319,12 @@ export default function DashboardPage() {
             </button>
 
             <button
-              onClick={() => setCsvModalOpen(true)}
+              onClick={() => setStatementModalOpen(true)}
               className="p-3 bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 rounded-xl text-left transition-all group"
             >
               <UploadCloud className="w-4 h-4 text-sky-400 mb-2 group-hover:scale-110 transition-transform" />
-              <div className="text-xs font-bold text-white">Import CSV</div>
-              <div className="text-[11px] text-slate-400">From bank portal</div>
+              <div className="text-xs font-bold text-white">Import Statement</div>
+              <div className="text-[11px] text-slate-400">PDF, Excel & CSV</div>
             </button>
 
             <button
@@ -632,29 +630,19 @@ export default function DashboardPage() {
               onClick: openAddTransaction
             }}
             secondaryAction={{
-              label: "Import CSV Statement",
-              onClick: () => setCsvModalOpen(true)
+              label: "Import Statement (PDF/Excel/CSV)",
+              onClick: () => setStatementModalOpen(true)
             }}
           />
         )}
       </div>
 
-      {/* CSV Import Modal */}
-      <CsvImportModal
-        isOpen={csvModalOpen}
-        onClose={() => setCsvModalOpen(false)}
+      {/* Statement Import Modal */}
+      <StatementImportModal
+        isOpen={statementModalOpen}
+        onClose={() => setStatementModalOpen(false)}
         onSuccess={() => {
-          setCsvModalOpen(false);
-          fetchDashboardData();
-        }}
-      />
-
-      {/* PDF Import Modal */}
-      <PdfImportModal
-        isOpen={pdfModalOpen}
-        onClose={() => setPdfModalOpen(false)}
-        onSuccess={() => {
-          setPdfModalOpen(false);
+          setStatementModalOpen(false);
           fetchDashboardData();
         }}
       />

@@ -18,8 +18,7 @@ import api from '../services/api';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import AddTransactionModal from '../components/AddTransactionModal';
-import CsvImportModal from '../components/CsvImportModal';
-import PdfImportModal from '../components/PdfImportModal';
+import StatementImportModal from '../components/StatementImportModal';
 import EmptyState from '../components/EmptyState';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -47,8 +46,7 @@ export default function TransactionsPage() {
   // Modals
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const [csvModalOpen, setCsvModalOpen] = useState(false);
-  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [statementModalOpen, setStatementModalOpen] = useState(false);
 
   // Pagination
   const [page, setPage] = useState(0);
@@ -121,19 +119,11 @@ export default function TransactionsPage() {
 
         <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={() => setCsvModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 rounded-xl text-xs font-semibold shadow-sm transition-all"
+            onClick={() => setStatementModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 rounded-xl text-xs font-semibold shadow-sm transition-all"
           >
             <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Import CSV</span>
-          </button>
-
-          <button
-            onClick={() => setPdfModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 rounded-xl text-xs font-semibold shadow-sm transition-all"
-          >
-            <FileText className="w-3.5 h-3.5 text-teal-400" />
-            <span>Import PDF</span>
+            <span>Import Statement (PDF/Excel/CSV)</span>
           </button>
 
           <button
@@ -329,8 +319,8 @@ export default function TransactionsPage() {
             }
           }}
           secondaryAction={{
-            label: "Import CSV Statement",
-            onClick: () => setCsvModalOpen(true)
+            label: "Import Statement (PDF/Excel/CSV)",
+            onClick: () => setStatementModalOpen(true)
           }}
         />
       )}
@@ -347,20 +337,11 @@ export default function TransactionsPage() {
         }}
       />
 
-      <CsvImportModal
-        isOpen={csvModalOpen}
-        onClose={() => setCsvModalOpen(false)}
+      <StatementImportModal
+        isOpen={statementModalOpen}
+        onClose={() => setStatementModalOpen(false)}
         onSuccess={() => {
-          setCsvModalOpen(false);
-          fetchTransactions();
-        }}
-      />
-
-      <PdfImportModal
-        isOpen={pdfModalOpen}
-        onClose={() => setPdfModalOpen(false)}
-        onSuccess={() => {
-          setPdfModalOpen(false);
+          setStatementModalOpen(false);
           fetchTransactions();
         }}
       />
