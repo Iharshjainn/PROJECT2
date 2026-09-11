@@ -151,51 +151,41 @@ ALTER TABLE public.chatbot_messages ENABLE ROW LEVEL SECURITY;
 
 -- Profiles Policies
 DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
-CREATE POLICY "Users can view own profile" ON public.profiles
-    FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile" ON public.profiles
-    FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
-CREATE POLICY "Users can insert own profile" ON public.profiles
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Accounts Policies
 DROP POLICY IF EXISTS "Users manage own accounts" ON public.accounts;
-CREATE POLICY "Users manage own accounts" ON public.accounts
-    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users manage own accounts" ON public.accounts FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Transactions Policies
 DROP POLICY IF EXISTS "Users manage own transactions" ON public.transactions;
-CREATE POLICY "Users manage own transactions" ON public.transactions
-    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users manage own transactions" ON public.transactions FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Assets Policies
 DROP POLICY IF EXISTS "Users manage own assets" ON public.assets;
-CREATE POLICY "Users manage own assets" ON public.assets
-    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users manage own assets" ON public.assets FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Liabilities Policies
 DROP POLICY IF EXISTS "Users manage own liabilities" ON public.liabilities;
-CREATE POLICY "Users manage own liabilities" ON public.liabilities
-    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users manage own liabilities" ON public.liabilities FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Financial Goals Policies
 DROP POLICY IF EXISTS "Users manage own goals" ON public.financial_goals;
-CREATE POLICY "Users manage own goals" ON public.financial_goals
-    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users manage own goals" ON public.financial_goals FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Chatbot Conversations Policies
 DROP POLICY IF EXISTS "Users manage own chat conversations" ON public.chatbot_conversations;
-CREATE POLICY "Users manage own chat conversations" ON public.chatbot_conversations
-    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users manage own chat conversations" ON public.chatbot_conversations FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- Chatbot Messages Policies
 DROP POLICY IF EXISTS "Users manage own chat messages" ON public.chatbot_messages;
-CREATE POLICY "Users manage own chat messages" ON public.chatbot_messages
-    FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users manage own chat messages" ON public.chatbot_messages FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- ==============================================================================
 -- PROFILE CREATION TRIGGER ON SIGNUP
