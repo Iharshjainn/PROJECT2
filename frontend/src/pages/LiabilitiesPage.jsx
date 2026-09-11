@@ -23,6 +23,7 @@ export default function LiabilitiesPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingLiability, setEditingLiability] = useState(null);
+  const [strategy, setStrategy] = useState('avalanche');
 
   const fetchLiabilities = async () => {
     try {
@@ -54,8 +55,6 @@ export default function LiabilitiesPage() {
   if (loading) {
     return <LoadingSpinner message="Evaluating liabilities and debt obligations..." />;
   }
-
-  const [strategy, setStrategy] = useState('avalanche');
 
   const totalDebt = liabilities.reduce((sum, l) => sum + Number(l.outstanding_amount || 0), 0);
   const totalMonthlyEmi = liabilities.reduce((sum, l) => sum + Number(l.monthly_payment || 0), 0);
