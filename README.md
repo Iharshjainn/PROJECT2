@@ -1,4 +1,4 @@
-# AuraFinance — AI-Powered Personal Financial Health Platform
+# PROSPERA — AI-Powered Personal Financial Health Platform
 
 A production-grade, end-to-end full-stack Personal Financial Health Platform built with **React**, **FastAPI**, **Supabase PostgreSQL (RLS)**, and **Google Gemini AI**.
 

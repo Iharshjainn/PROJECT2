@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <Sparkles className="w-5 h-5 text-slate-950 font-bold" />
           </div>
-          <span className="font-extrabold text-2xl tracking-tight text-white">AuraFinance</span>
+          <span className="font-extrabold text-2xl tracking-wider text-white">PROSPERA</span>
         </Link>
         <h2 className="text-2xl font-bold tracking-tight text-white">Reset Password</h2>
         <p className="mt-1 text-xs sm:text-sm text-slate-400">

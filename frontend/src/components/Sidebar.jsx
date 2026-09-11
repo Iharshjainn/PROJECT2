@@ -55,8 +55,8 @@ export default function Sidebar({ isOpen, onClose }) {
               <Sparkles className="w-5 h-5 text-slate-950 font-bold" />
             </div>
             <div>
-              <span className="font-extrabold text-lg tracking-tight text-white block">AuraFinance</span>
-              <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold">AI Financial Health</span>
+              <span className="font-extrabold text-lg tracking-wider text-white block">PROSPERA</span>
+              <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-semibold">Financial Intelligence</span>
             </div>
           </div>
         </div>

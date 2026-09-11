@@ -24,7 +24,7 @@ export default function LandingPage() {
             <Sparkles className="w-5 h-5 text-slate-950 font-bold" />
           </div>
           <div>
-            <span className="font-extrabold text-xl tracking-tight text-white block">AuraFinance</span>
+            <span className="font-extrabold text-xl tracking-wider text-white block">PROSPERA</span>
             <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">Personal Financial Health</span>
           </div>
         </div>
@@ -153,7 +153,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="py-8 border-t border-slate-900 px-6 text-center text-xs text-slate-500">
-        <p>© {new Date().getFullYear()} AuraFinance. Personal Financial Health Platform. Built with React, FastAPI, Supabase & Gemini.</p>
+        <p>© {new Date().getFullYear()} PROSPERA. Personal Financial Health Platform. Built with React, FastAPI, Supabase & Gemini.</p>
       </footer>
     </div>
   );
