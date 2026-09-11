@@ -32,6 +32,14 @@ async def get_current_user(
         )
     
     token = credentials.credentials
+
+    # Development/testing fast-path for test tokens
+    if settings.ENVIRONMENT == "development" and token.startswith("test_user_"):
+        return AuthenticatedUser(
+            user_id=token,
+            email=f"{token}@example.com"
+        )
+
     supabase = get_supabase()
 
     # If Supabase client is available, verify with Supabase Auth
