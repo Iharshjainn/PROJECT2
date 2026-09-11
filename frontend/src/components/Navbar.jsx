@@ -1,6 +1,7 @@
 import React from 'react';
 import { Menu, Bell, Sparkles, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import ThemeToggle from './ThemeToggle';
 
 export default function Navbar({ onMenuClick, onQuickAction }) {
   const { user, currency } = useAuth();
@@ -34,6 +35,7 @@ export default function Navbar({ onMenuClick, onQuickAction }) {
         <div className="h-4 w-px bg-slate-800 mx-1 hidden sm:block" />
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <span className="text-xs font-mono font-medium px-2.5 py-1 bg-slate-900 border border-slate-800 rounded-lg text-emerald-400">
             {currency}
           </span>
